@@ -1,0 +1,86 @@
+# File location:
+#   .github/workflows/deploy-via-ftp.yml
+#
+# What this does:
+#   Deploys your repo to your web hosting over FTP.
+#
+# When it runs:
+#   1. Automatically when you push to the main branch AND the commit message contains [PROD]
+#   2. Manually from GitHub → Actions → Deploy via FTP → Run workflow
+#
+# Example deploy commit:
+#   git commit -m "[PROD] Update homepage"
+#   git push
+
+name: Deploy via FTP
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+  ftp-deploy:
+    name: Upload site files to web server
+    runs-on: ubuntu-latest
+
+    # Auto deploy only when commit message contains [PROD].
+    # Manual runs from the Actions tab always deploy.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[PROD]')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Required so FTP Deploy can compare changes properly.
+          fetch-depth: 0
+
+      - name: Deploy files via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          # Required GitHub secrets:
+          #   FTP_SERVER    = FTP host, e.g. ftp.yourdomain.co.uk
+          #   FTP_USERNAME  = FTP username from your hosting provider
+          #   FTP_PASSWORD  = FTP password from your hosting provider
+          #
+          # Add them here:
+          #   GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+
+          # Repo folder to upload.
+          # "./" means upload from the root of the repository.
+          local-dir: ./
+
+          # Server folder to upload into.
+          # Common examples:
+          #   /public_html/
+          #   /htdocs/
+          #   /www/
+          #
+          # Check your hosting file manager if unsure.
+          server-dir: /public_html/
+
+          # Delete files on the server that no longer exist in the repo.
+          # Keep false unless you are 100% sure the FTP folder only contains this site.
+          dangerous-clean-slate: false
+
+          # Files/folders that must never be uploaded.
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.github/**
+            **/node_modules/**
+            **/README.md
+            **/.env
+            **/.env.*
+            **/package-lock.json
+            **/package.json
+            **/src/**
+            **/tests/**
+            **/*.map
